@@ -14,6 +14,7 @@ from sapp.models import SM, AbstractUser, ImageField
 class Category(SM):
     icon = "fas fa-ad"
     list_field_names = ("id", "name", "image")
+    serializer_list_field_names = list_field_names + ("header", )
     detail_field_names = ("id", "name", "image", "header") + SM.sm_meta_field_names
     api_methods = ("get_category_post_stats_api", "get_category_author_stats_api")
     queryset_names = ("posts",)
@@ -23,7 +24,7 @@ class Category(SM):
 
     name = models.CharField(max_length=256)
     image = ImageField(upload_to="blog_posts")
-    header = HTMLField()
+    header = models.TextField(blank=True, null=True, max_length=256)
 
     @property
     def posts(self):
@@ -58,6 +59,7 @@ class Category(SM):
 class Author(SM):
     icon = "fas fa-user-tie"
     list_field_names = ("id", "user", "image", "full_name")
+    queryset_names = ("posts", )
 
     user: models.OneToOneField[AbstractUser] = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True)
     full_name = models.CharField(max_length=256)
@@ -68,11 +70,17 @@ class Author(SM):
     def __str__(self):
         return self.full_name
 
+    @property
+    def posts(self):
+        return Post.objects.filter(author = self)
+
 
 class Post(SM):
     icon = "fas fa-blog"
-    list_field_names = ("id", "title", "image", "category", "author", "published", "reads")
+    list_field_names = ("id", "title", "image", "category", "author", "published", "reads", "creation_timestamp")
+    serializer_list_field_names = list_field_names + ("serialized_author", "serialized_category")
     detail_field_names = list_field_names + ("body", "keywords") + SM.sm_meta_field_names
+    serializer_detail_field_names = tuple(set(serializer_list_field_names+ detail_field_names))
     filter_field_names = ("author", "published", "category")
     queryset_names = ("comments",)
     
@@ -93,6 +101,14 @@ class Post(SM):
     @property
     def comments(self):
         return Comment.objects.filter(post_id=self.pk)
+    
+    @property
+    def serialized_author(self):
+        return self.author.values_dict("id", "full_name") if self.author else None
+    
+    @property
+    def serialized_category(self):
+        return self.category.values_dict("id", "name")
 
     def set_published(self):
         if not self.updated_by.has_perm("blog.publish_post"):
@@ -111,7 +127,8 @@ class Post(SM):
 
     @classmethod
     def get_filters_form(cls, request: WSGIRequest, _fields: typing.Iterable=None):
-        class FilterForm(super().get_filters_form(request, _fields)):
+        super_form = super().get_filters_form(request, _fields)
+        class FilterForm(super_form):
             title__icontains = forms.CharField(label="Title")
             keywords__icontains = forms.CharField(label="Keywords")
             body__icontains = forms.CharField(label="Body")
@@ -120,13 +137,16 @@ class Post(SM):
 
 
 class Comment(SM):
+    class Meta(SM.Meta):
+        ordering = ("-id", )
     icon = "fas fa-comment-dots"
-    list_field_names = ("id", "post", "text", "created_by")
+    list_field_names = ("id", "post", "text", "created_by", "username", "creation_timestamp")
     filter_field_names = ("post",)
 
     text = models.TextField(max_length=512)
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="post_comments")
     comment = models.ForeignKey("self", on_delete=models.CASCADE, related_name="comment_comments", blank=True, null=True)
+    username = models.CharField(max_length=256, blank=True)
 
     @property
     def replies(self):
@@ -135,6 +155,13 @@ class Comment(SM):
     @property
     def list_url(self):
         return self.post.detail_url
+    
+    def set_username(self):
+        self.username = str(self.updated_by or self.created_by)
+    
+    def save(self, *args, **kwargs):
+        self.set_username()
+        return super().save(*args, **kwargs)
 
 
 class Following(SM):
