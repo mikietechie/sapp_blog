@@ -81,7 +81,7 @@ class Post(SM):
     serializer_list_field_names = list_field_names + ("serialized_author", "serialized_category")
     detail_field_names = list_field_names + ("body", "keywords") + SM.sm_meta_field_names
     serializer_detail_field_names = tuple(set(serializer_list_field_names+ detail_field_names))
-    filter_field_names = ("author", "published", "category")
+    filter_field_names = ("author", "published", "category", "created_by")
     queryset_names = ("comments",)
     
     has_attachments = True
