@@ -60,6 +60,7 @@ class Author(SM):
     icon = "fas fa-user-tie"
     list_field_names = ("id", "user", "image", "full_name")
     queryset_names = ("posts", )
+    api_methods = ("get_author_ctx_api", )
 
     user: models.OneToOneField[AbstractUser] = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True)
     full_name = models.CharField(max_length=256)
@@ -73,6 +74,14 @@ class Author(SM):
     @property
     def posts(self):
         return Post.objects.filter(author = self)
+    
+    @classmethod
+    def get_author_ctx_api(cls, request: Request, kwds: dict):
+        author = Author.objects.filter(user=request.user).first()
+        if not author:
+            return None
+        serializer_class = cls.get_serializer(request, ("id", "full_name", "user", "image", "about", "categories"))
+        return serializer_class(instance=author).data
 
 
 class Post(SM):
