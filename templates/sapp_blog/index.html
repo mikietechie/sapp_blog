@@ -30,7 +30,7 @@
 {% endif %}
     
 
-<a href="/{% settings_value 'SAPP_URL' %}/module/sapp_blog/" class="col-md-4 col-lg-3">
+<a href="/{% settings_value 'SAPP_URL' %}/sapp_blog/module/" class="col-md-4 col-lg-3">
     <div class="card">
         <div class="card-body">
             <div class="row align-items-center m-l-0">
@@ -77,7 +77,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const headers = {'X-CSRFToken': '{{ csrf_token }}'}
-        const methodsBaseURL = `/{% settings_value 'SAPP_URL' %}/api/method/sapp_blog/`
+        const methodsBaseURL = `/{% settings_value 'SAPP_URL' %}/sapp_blog/api/method/`
         const setupCategoryPostStats = () => {
             const render = (data) => {
                 (
